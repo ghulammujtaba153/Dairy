@@ -144,13 +144,14 @@ class ProductionController {
         await sql`
           UPDATE inventory 
           SET in_hand_quantity = in_hand_quantity + ${outputQty},
+              price = price + ${total_cost},
               updated_at = CURRENT_TIMESTAMP
           WHERE id = ${inventory.id}
         `;
       } else {
         await sql`
-          INSERT INTO inventory (product_name, in_hand_quantity, unit, price_per_unit)
-          VALUES (${production_name}, ${outputQty}, ${unit}, 0)
+          INSERT INTO inventory (product_name, in_hand_quantity, unit, price)
+          VALUES (${production_name}, ${outputQty}, ${unit}, ${total_cost})
         `;
       }
 

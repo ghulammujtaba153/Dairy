@@ -9,6 +9,7 @@ const inventoryController = require('../controllers/inventory.controller');
 router.get('/', inventoryController.getStock.bind(inventoryController));
 router.get('/movements', inventoryController.getMovements.bind(inventoryController));
 router.get('/stats', inventoryController.getStats.bind(inventoryController));
+router.put('/:id', inventoryController.updateProduct.bind(inventoryController));
 router.post('/movement', inventoryController.recordMovement.bind(inventoryController));
 router.put('/movement/:id', inventoryController.updateMovement.bind(inventoryController));
 router.delete('/movement/:id', inventoryController.deleteMovement.bind(inventoryController));
