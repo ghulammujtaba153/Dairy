@@ -8,7 +8,7 @@ const { authenticateToken } = require('../utils/auth');
  * All routes are protected
  */
 
-router.use(authenticateToken);
+// router.use(authenticateToken);
 
 router.get('/', suppliersController.getAllSuppliers.bind(suppliersController));
 router.get('/:id', suppliersController.getSupplierById.bind(suppliersController));

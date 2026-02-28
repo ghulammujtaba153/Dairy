@@ -25,6 +25,8 @@ async function initDatabase() {
     const clientsSchema = require('../models/clients.schema');
     const rawMaterialSchema = require('../models/raw_material.schema');
     const productionSchema = require('../models/production.schema');
+    const inventorySchema = require('../models/inventory.schema');
+    const labourSchema = require('../models/labour.schema');
     
     // Create tables if they don't exist
     await sql.query(userSchema.getCreateTableSQL());
@@ -32,6 +34,11 @@ async function initDatabase() {
     await sql.query(clientsSchema.getCreateTableSQL());
     await sql.query(rawMaterialSchema.getCreateTableSQL());
     await sql.query(productionSchema.getCreateTableSQL());
+    await sql.query(inventorySchema.getCreateTableSQL());
+    await sql.query(inventorySchema.getMovementsTableSQL());
+    await sql.query(labourSchema.getCreateTableSQL());
+    await sql.query(labourSchema.getAttendanceTableSQL());
+    await sql.query(labourSchema.getAdvancesTableSQL());
     
     console.log('✅ Database tables initialized');
   } catch (error) {
