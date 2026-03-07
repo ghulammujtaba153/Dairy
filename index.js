@@ -46,6 +46,7 @@ const rawMaterialRoutes = require('./routes/raw_material');
 const productionRoutes = require('./routes/production');
 const inventoryRoutes = require('./routes/inventory');
 const labourRoutes = require('./routes/labour');
+const salesRoutes = require('./routes/sales');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/suppliers', suppliersRoutes);
@@ -54,6 +55,7 @@ app.use('/api/raw-materials', rawMaterialRoutes);
 app.use('/api/production', productionRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/labour', labourRoutes);
+app.use('/api/sales', salesRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

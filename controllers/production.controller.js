@@ -131,39 +131,9 @@ class ProductionController {
       `;
       const prod = records[0];
 
-      // 2. Update Inventory
-      const inventoryRecords = await sql`
-        SELECT * FROM inventory WHERE product_name = ${production_name}
-      `;
-      const inventory = inventoryRecords[0];
-
-      const outputQty = Number(production_output);
-      const unit = production_name.toLowerCase().includes('cream') ? 'liters' : 'kg';
-
-      if (inventory) {
-        await sql`
-          UPDATE inventory 
-          SET in_hand_quantity = in_hand_quantity + ${outputQty},
-              price = price + ${total_cost},
-              updated_at = CURRENT_TIMESTAMP
-          WHERE id = ${inventory.id}
-        `;
-      } else {
-        await sql`
-          INSERT INTO inventory (product_name, in_hand_quantity, unit, price)
-          VALUES (${production_name}, ${outputQty}, ${unit}, ${total_cost})
-        `;
-      }
-
-      // 3. Record Stock Movement
-      await sql`
-        INSERT INTO stock_movements (product_name, movement_type, quantity, unit, reference_id, source_destination)
-        VALUES (${production_name}, 'in', ${outputQty}, ${unit}, ${'BATCH-' + prod.id}, 'Production Line')
-      `;
-
       res.status(201).json({
         success: true,
-        message: 'Production logged and inventory updated',
+        message: 'Production logged successfully',
         data: productionSchema.sanitize(prod)
       });
     } catch (error) {
@@ -217,32 +187,9 @@ class ProductionController {
       `;
       const updated = updatedRecords[0];
 
-      // 2. Adjust Inventory if output or name changed
-      if (outputDiff !== 0) {
-        await sql`
-          UPDATE inventory 
-          SET in_hand_quantity = in_hand_quantity + ${outputDiff},
-              updated_at = CURRENT_TIMESTAMP
-          WHERE product_name = ${updated.production_name}
-        `;
-
-        // 3. Log movement for adjustment
-        await sql`
-          INSERT INTO stock_movements (product_name, movement_type, quantity, unit, reference_id, source_destination)
-          VALUES (
-            ${updated.production_name}, 
-            ${outputDiff > 0 ? 'in' : 'out'}, 
-            ${Math.abs(outputDiff)}, 
-            ${updated.production_name.toLowerCase().includes('cream') ? 'liters' : 'kg'}, 
-            ${'ADJ-' + updated.id}, 
-            'Production Adjustment'
-          )
-        `;
-      }
-
       res.json({
         success: true,
-        message: 'Production log and inventory updated successfully',
+        message: 'Production log updated successfully',
         data: productionSchema.sanitize(updated)
       });
     } catch (error) {
@@ -266,30 +213,9 @@ class ProductionController {
       // 1. Delete production record
       await sql`DELETE FROM production WHERE id = ${id}`;
 
-      // 2. Reverse inventory
-      await sql`
-        UPDATE inventory 
-        SET in_hand_quantity = in_hand_quantity - ${Number(current.production_output)},
-            updated_at = CURRENT_TIMESTAMP
-        WHERE product_name = ${current.production_name}
-      `;
-
-      // 3. Log reversing movement
-      await sql`
-        INSERT INTO stock_movements (product_name, movement_type, quantity, unit, reference_id, source_destination)
-        VALUES (
-          ${current.production_name}, 
-          'out', 
-          ${Number(current.production_output)}, 
-          ${current.production_name.toLowerCase().includes('cream') ? 'liters' : 'kg'}, 
-          ${'DEL-' + current.id}, 
-          'Production Reversal'
-        )
-      `;
-
       res.json({
         success: true,
-        message: 'Log deleted and inventory adjusted'
+        message: 'Log deleted successfully'
       });
     } catch (error) {
       console.error('Delete production log error:', error);

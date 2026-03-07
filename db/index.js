@@ -25,8 +25,9 @@ async function initDatabase() {
     const clientsSchema = require('../models/clients.schema');
     const rawMaterialSchema = require('../models/raw_material.schema');
     const productionSchema = require('../models/production.schema');
-    const inventorySchema = require('../models/inventory.schema');
     const labourSchema = require('../models/labour.schema');
+    const salesSchema = require('../models/sales.schema');
+    const inventorySchema = require('../models/inventory.schema');
     
     // Create tables if they don't exist
     await sql.query(userSchema.getCreateTableSQL());
@@ -34,11 +35,29 @@ async function initDatabase() {
     await sql.query(clientsSchema.getCreateTableSQL());
     await sql.query(rawMaterialSchema.getCreateTableSQL());
     await sql.query(productionSchema.getCreateTableSQL());
-    await sql.query(inventorySchema.getCreateTableSQL());
     await sql.query(inventorySchema.getMovementsTableSQL());
     await sql.query(labourSchema.getCreateTableSQL());
     await sql.query(labourSchema.getAttendanceTableSQL());
     await sql.query(labourSchema.getAdvancesTableSQL());
+    await sql.query(salesSchema.getCreateTableSQL());
+    
+    // Migration: Add status column and update payment_status to sales table if missing
+    try {
+      await sql.query(`ALTER TABLE sales ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'paid' CHECK (status IN ('paid', 'unpaid', 'partial'))`);
+      
+      // Update payment_status check constraint to include 'credit'
+      // We drop if exists and recreate it to be safe (or just try to add it)
+      // For Neon/Postgres, we can drop the constraint and add it back
+      try {
+        await sql.query(`ALTER TABLE sales DROP CONSTRAINT IF EXISTS sales_payment_status_check`);
+        await sql.query(`ALTER TABLE sales ADD CONSTRAINT sales_payment_status_check CHECK (payment_status IN ('cash', 'bank', 'jazzcash', 'easypaisa', 'credit'))`);
+      } catch (err) {
+        // If the constraint name is different or other error, just log it
+        console.log('Payment status constraint update skipped/failed (might already be up to date)');
+      }
+    } catch (migError) {
+      console.log('Migration for sales table skipped:', migError.message);
+    }
     
     console.log('✅ Database tables initialized');
   } catch (error) {
