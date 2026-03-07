@@ -58,7 +58,7 @@ const labourSchema = {
   validate: {
     labour: (data) => {
       if (!data.name) throw new Error('Labour name is required');
-      if (!data.daily_wage || data.daily_wage <= 0) throw new Error('Valid daily wage is required');
+      if (!data.daily_wage || data.daily_wage <= 0) throw new Error('Valid monthly wage is required');
       return true;
     },
     attendance: (data) => {

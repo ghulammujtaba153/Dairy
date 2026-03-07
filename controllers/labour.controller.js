@@ -34,11 +34,12 @@ class LabourController {
         )
         SELECT 
           l.*,
-          COALESCE(a.days_worked, 0) as days_worked,
-          (COALESCE(a.days_worked, 0) * l.daily_wage) as total_earned,
+          COALESCE(a.days_worked, 0) as attendance_days,
+          (EXTRACT(YEAR FROM AGE(CURRENT_DATE, l.joining_date)) * 12 + EXTRACT(MONTH FROM AGE(CURRENT_DATE, l.joining_date)) + 1) as total_months,
+          ((EXTRACT(YEAR FROM AGE(CURRENT_DATE, l.joining_date)) * 12 + EXTRACT(MONTH FROM AGE(CURRENT_DATE, l.joining_date)) + 1) * l.daily_wage) as total_earned,
           COALESCE(adv.total_advances, 0) as total_advances,
           COALESCE(pay.total_payments, 0) as total_payments,
-          ((COALESCE(a.days_worked, 0) * l.daily_wage) - COALESCE(adv.total_advances, 0) - COALESCE(pay.total_payments, 0)) as balance
+          (((EXTRACT(YEAR FROM AGE(CURRENT_DATE, l.joining_date)) * 12 + EXTRACT(MONTH FROM AGE(CURRENT_DATE, l.joining_date)) + 1) * l.daily_wage) - COALESCE(adv.total_advances, 0) - COALESCE(pay.total_payments, 0)) as balance
         FROM labour l
         LEFT JOIN attendance_stats a ON l.id = a.labour_id
         LEFT JOIN advance_stats adv ON l.id = adv.labour_id
@@ -64,9 +65,14 @@ class LabourController {
       const { id } = req.params;
       const records = await sql`
         WITH attendance_stats AS (
-          SELECT labour_id, COUNT(*) as days_worked
+          SELECT 
+            labour_id, 
+            COUNT(*) as days_worked,
+            COUNT(CASE WHEN status = 'present' THEN 1 END) as present_days,
+            COUNT(CASE WHEN status = 'absent' THEN 1 END) as absent_days,
+            COUNT(CASE WHEN status IN ('late', 'half-day') THEN 1 END) as half_days
           FROM attendance
-          WHERE labour_id = ${id} AND status IN ('present', 'late', 'half-day')
+          WHERE labour_id = ${id}
           GROUP BY labour_id
         ),
         advance_stats AS (
@@ -83,11 +89,15 @@ class LabourController {
         )
         SELECT 
           l.*,
-          COALESCE(a.days_worked, 0) as days_worked,
-          (COALESCE(a.days_worked, 0) * l.daily_wage) as total_earned,
+          COALESCE(a.days_worked, 0) as attendance_days,
+          (EXTRACT(YEAR FROM AGE(CURRENT_DATE, l.joining_date)) * 12 + EXTRACT(MONTH FROM AGE(CURRENT_DATE, l.joining_date)) + 1) as total_months,
+          COALESCE(a.present_days, 0) as present_days,
+          COALESCE(a.absent_days, 0) as absent_days,
+          COALESCE(a.half_days, 0) as half_days,
+          ((EXTRACT(YEAR FROM AGE(CURRENT_DATE, l.joining_date)) * 12 + EXTRACT(MONTH FROM AGE(CURRENT_DATE, l.joining_date)) + 1) * l.daily_wage) as total_earned,
           COALESCE(adv.total_advances, 0) as total_advances,
           COALESCE(pay.total_payments, 0) as total_payments,
-          ((COALESCE(a.days_worked, 0) * l.daily_wage) - COALESCE(adv.total_advances, 0) - COALESCE(pay.total_payments, 0)) as balance
+          (((EXTRACT(YEAR FROM AGE(CURRENT_DATE, l.joining_date)) * 12 + EXTRACT(MONTH FROM AGE(CURRENT_DATE, l.joining_date)) + 1) * l.daily_wage) - COALESCE(adv.total_advances, 0) - COALESCE(pay.total_payments, 0)) as balance
         FROM labour l
         LEFT JOIN attendance_stats a ON l.id = a.labour_id
         LEFT JOIN advance_stats adv ON l.id = adv.labour_id
@@ -305,6 +315,80 @@ class LabourController {
     } catch (error) {
       console.error('Get transactions error:', error);
       res.status(500).json({ error: 'Failed to retrieve transactions' });
+    }
+  }
+
+  /**
+   * Update labour profile
+   */
+  async updateLabour(req, res) {
+    try {
+      const { id } = req.params;
+      const { name, role, daily_wage, phone, status } = req.body;
+      
+      const records = await sql`
+        UPDATE labour
+        SET 
+          name = ${name},
+          role = ${role},
+          daily_wage = ${daily_wage},
+          phone = ${phone},
+          status = ${status},
+          updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING *
+      `;
+
+      if (records.length === 0) return res.status(404).json({ error: 'Labour not found' });
+
+      res.json({
+        success: true,
+        data: labourSchema.sanitize(records[0])
+      });
+    } catch (error) {
+      console.error('Update labour error:', error);
+      res.status(500).json({ error: 'Failed to update labour profile' });
+    }
+  }
+
+  /**
+   * Delete labour profile
+   */
+  async deleteLabour(req, res) {
+    try {
+      const { id } = req.params;
+      
+      // We should probably check if there are dependencies, but for now just delete
+      // Cascade delete should be handled by DB if configured, otherwise we do it here
+      await sql`DELETE FROM attendance WHERE labour_id = ${id}`;
+      await sql`DELETE FROM advances WHERE labour_id = ${id}`;
+      const result = await sql`DELETE FROM labour WHERE id = ${id}`;
+
+      res.json({
+        success: true,
+        message: 'Labour profile deleted successfully'
+      });
+    } catch (error) {
+      console.error('Delete labour error:', error);
+      res.status(500).json({ error: 'Failed to delete labour profile' });
+    }
+  }
+
+  /**
+   * Delete transaction (advance/payment)
+   */
+  async deleteTransaction(req, res) {
+    try {
+      const { id } = req.params;
+      await sql`DELETE FROM advances WHERE id = ${id}`;
+
+      res.json({
+        success: true,
+        message: 'Transaction deleted successfully'
+      });
+    } catch (error) {
+      console.error('Delete transaction error:', error);
+      res.status(500).json({ error: 'Failed to delete transaction' });
     }
   }
 }

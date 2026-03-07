@@ -16,6 +16,9 @@ router.post('/', labourController.createLabour);
 router.post('/attendance', labourController.markAttendance);
 router.delete('/attendance/:id', labourController.deleteAttendance);
 router.post('/advance', labourController.recordAdvance);
+router.put('/:id', labourController.updateLabour);
+router.delete('/:id', labourController.deleteLabour);
+router.delete('/transactions/:id', labourController.deleteTransaction);
 
 // Individual Resource (Must be at the bottom)
 router.get('/:id', labourController.getLabourById);
